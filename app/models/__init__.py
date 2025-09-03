@@ -1,2 +1,1 @@
-from .base import Base
-from .role import Role
+from .models import *
