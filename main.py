@@ -6,8 +6,3 @@ app = FastAPI(title=settings.PROJECT_NAME)
 
 # Подключаем роуты
 app.include_router(api_router)
-
-
-@app.get("/")
-async def root():
-    return {"message": "API is running 🚀"}
