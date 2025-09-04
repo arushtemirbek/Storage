@@ -16,6 +16,8 @@ python-dotenv = "^1.1.1"
 dotenv = "^0.9.9"
 psycopg2-binary = "^2.9.10"
 pydantic-settings = "^2.10.1"
+python-jose = {extras = ["cryptography"], version = "^3.5.0"}
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 
 
 [build-system]

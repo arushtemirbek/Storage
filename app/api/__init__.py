@@ -1,7 +1,8 @@
 from fastapi import APIRouter
-from app.api import health
+from app.api import health, auth
 
 router = APIRouter()
 
-# Подключаем все модули API
-router.include_router(health.router, prefix="/health", tags=["healthcheck"])
+
+router.include_router(health.router, prefix="", tags=["healthcheck"])
+router.include_router(auth.router, prefix="", tags=["auth"])
