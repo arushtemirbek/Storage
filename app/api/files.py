@@ -1,54 +1,65 @@
-import os
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database.session import get_db
-from app.models import File as FileModel, VisibilityEnum
-from app.schemas.file_schema import FileOut
-from datetime import datetime
+from minio import Minio
 from uuid import uuid4
+
+from app.database.session import get_db
+from app.models import File, VisibilityEnum
 
 router = APIRouter()
 
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# Настраиваем MinIO клиент
+minio_client = Minio(
+    "localhost:9000",  # если в докере вместе с API, то "minio:9000"
+    access_key="minioadmin",
+    secret_key="minioadmin",
+    secure=False
+)
+
+BUCKET_NAME = "files"
+
+# Создаём bucket, если нет
+if not minio_client.bucket_exists(BUCKET_NAME):
+    minio_client.make_bucket(BUCKET_NAME)
 
 
-@router.post("/upload", response_model=FileOut)
+@router.post("/upload")
 async def upload_file(
-    file: UploadFile = File(...),
-    visibility: VisibilityEnum = Form(...),
+    file: UploadFile,
     db: AsyncSession = Depends(get_db),
-    current_user_id: int = 2,
-    current_department_id: int = 1,
+    owner_id: int = 1,  # пока захардкодим для теста
+    department_id: int = 1
 ):
-    ext = os.path.splitext(file.filename)[1]
-    new_filename = f"{uuid4().hex}{ext}"
-    file_path = os.path.join(UPLOAD_DIR, new_filename)
+    try:
+        # генерим уникальное имя
+        file_id = str(uuid4())
+        object_name = f"{file_id}_{file.filename}"
 
-    content = await file.read()
-    size = len(content)
+        # загружаем в MinIO
+        minio_client.put_object(
+            BUCKET_NAME,
+            object_name,
+            file.file,  # поток
+            length=-1,  # не знаем длину, MinIO сам определит
+            part_size=10 * 1024 * 1024,  # chunk 10MB
+            content_type=file.content_type
+        )
 
-    if size > 100 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large")
+        # сохраняем запись в БД
+        new_file = File(
+            filename=file.filename,
+            path=f"{BUCKET_NAME}/{object_name}",
+            size=0,  # можно считать через file.spool_max_size
+            mimetype=file.content_type,
+            visibility=VisibilityEnum.PRIVATE,
+            owner_id=owner_id,
+            department_id=department_id,
+        )
+        db.add(new_file)
+        await db.commit()
+        await db.refresh(new_file)
 
-    with open(file_path, "wb") as f:
-        f.write(content)
+        return {"file_id": new_file.id, "path": new_file.path}
 
-    new_file = FileModel(
-        filename=file.filename,
-        path=file_path,
-        size=size,
-        mimetype=file.content_type,
-        visibility=visibility,
-        owner_id=current_user_id,
-        department_id=current_department_id,
-        created_at=datetime.utcnow(),
-    )
-
-    db.add(new_file)
-    await db.commit()
-    await db.refresh(new_file)
-
-    # TODO: вызвать Celery задачу для извлечения метаданных
-
-    return new_file
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
