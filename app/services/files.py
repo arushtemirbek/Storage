@@ -1,11 +1,27 @@
-# import os
-# from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
-# from sqlalchemy.ext.asyncio import AsyncSession
-# from app.database.session import get_db
-# from app.models import File as FileModel, VisibilityEnum
-# from app.schemas.file_schema import FileOut
-# from datetime import datetime
-# from uuid import uuid4
-#
-# async def create_file(db: AsyncSession, department_id: int, file: File) -> File:
-#
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models import File, VisibilityEnum
+
+
+async def save_file_record(
+    db: AsyncSession,
+    filename: str,
+    path: str,
+    mimetype: str,
+    owner_id: int,
+    department_id: int,
+    visibility: VisibilityEnum = VisibilityEnum.PRIVATE
+) -> File:
+    """Создаём запись о файле в БД"""
+    new_file = File(
+        filename=filename,
+        path=path,
+        size=0,  # при желании можно вычислить
+        mimetype=mimetype,
+        visibility=visibility,
+        owner_id=owner_id,
+        department_id=department_id,
+    )
+    db.add(new_file)
+    await db.commit()
+    await db.refresh(new_file)
+    return new_file
