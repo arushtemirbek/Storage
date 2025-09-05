@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     JWT_ALGORITHM: str = "HS256"
+    MINIO_USERNAME: str
+    MINIO_SECRET_KEY: str
 
     model_config = {
         "env_file": ".env",
