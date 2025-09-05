@@ -36,7 +36,7 @@ async def save_files(file):
             part_size=10 * 1024 * 1024,  # chunk 10MB
             content_type=file.content_type
         )
-        return f"{BUCKET_NAME}/{object_name}"
+        return object_name
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="Some error when saving file in minio")
