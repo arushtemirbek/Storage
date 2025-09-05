@@ -1,10 +1,10 @@
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import jwt
+from app.settings.config import settings
 
-
-SECRET_KEY = "supersecretkey"  # ⚠️ вынеси в .env
-ALGORITHM = "HS256"
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.JWT_ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
